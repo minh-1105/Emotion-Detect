@@ -48,3 +48,10 @@ artifacts/outputs/uploaded_images/
 
 # Temporary notebook workdirs
 emotion_workdir/
+
+# report
+emotion_detection_report_overleaf.tex
+notebook_v2_review.md
+
+#request
+request.txt
