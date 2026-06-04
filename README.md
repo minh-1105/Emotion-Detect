@@ -1,8 +1,7 @@
 # Emotion Detect
 
-Tài liệu này giải thích chi tiết notebook mới:
 
-- [Face_Emotion_Detect_Multi_v2.ipynb](C:\Users\minht\OneDrive\Tài liệu\Emotion Detect\notebooks\Face_Emotion_Detect_Multi_v2.ipynb)
+- [Face_Emotion_Detect_Multi_v2.ipynb](C:\Users\~\notebooks\Face_Emotion_Detect_Multi_v2.ipynb)
 
 Notebook này dùng để:
 
