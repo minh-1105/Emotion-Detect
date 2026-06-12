@@ -1,6 +1,6 @@
 # Facial Emotion Recognition Using AffectNet and MobileNetV2
 
-Project này xây dựng pipeline nhận diện cảm xúc khuôn mặt từ ảnh tĩnh. 
+Project này xây dựng pipeline nhận diện cảm xúc khuôn mặt từ ảnh tĩnh. Phần hiện có tập trung vào notebook huấn luyện model, phân tích dữ liệu, đánh giá kết quả, lưu artifact và viết báo cáo. Phần app/interface sẽ được bổ sung sau.
 
 ## 1. Tổng quan
 
