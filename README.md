@@ -1,205 +1,10 @@
-# Emotion Detect
+# Facial Emotion Recognition Using AffectNet and MobileNetV2
 
+Project này xây dựng pipeline nhận diện cảm xúc khuôn mặt từ ảnh tĩnh. Phần hiện có tập trung vào notebook huấn luyện model, phân tích dữ liệu, đánh giá kết quả, lưu artifact và viết báo cáo. Phần app/interface sẽ được bổ sung sau.
 
-- [Face_Emotion_Detect_Multi_v2.ipynb](C:\Users\~\notebooks\Face_Emotion_Detect_Multi_v2.ipynb)
+## 1. Tổng quan
 
-Notebook này dùng để:
-
-1. Tìm hoặc tải dataset AffectNet
-2. Chuẩn hóa nhãn cảm xúc về 7 lớp
-3. Tạo tập train, validation, test
-4. Huấn luyện mô hình nhận diện cảm xúc bằng `MobileNetV2`
-5. Đánh giá mô hình
-6. Lưu model và metadata để dùng cho ứng dụng sau này
-
-## 1. Mục tiêu của notebook
-
-Notebook `Face_Emotion_Detect_Multi_v2.ipynb` là một pipeline huấn luyện hoàn chỉnh cho bài toán phân loại cảm xúc khuôn mặt.
-
-Đầu vào:
-
-- Dataset kiểu AffectNet
-- Hoặc dataset có file CSV annotation
-- Hoặc dataset dạng thư mục lớp, ví dụ `happy/*.jpg`, `sad/*.png`
-
-Đầu ra:
-
-- Model tốt nhất trong quá trình train
-- Model cuối cùng để triển khai
-- Metadata mô tả model
-- Các file CSV chứa danh sách train/valid/test
-- Báo cáo đánh giá và confusion matrix
-
-## 2. Cấu trúc thư mục mà notebook sử dụng
-
-Notebook mới được viết để bám theo cấu trúc repo hiện tại:
-
-```text
-Emotion Detect/
-├─ app/
-├─ artifacts/
-│  ├─ models/
-│  └─ outputs/
-├─ data/
-│  ├─ processed/
-│  └─ raw/
-├─ docs/
-└─ notebooks/
-   ├─ Face_Emotion_Detect_Multi.ipynb
-   └─ Face_Emotion_Detect_Multi_v2.ipynb
-```
-
-Ý nghĩa:
-
-- `data/raw/`: nơi chứa dataset gốc nếu bạn tải sẵn về máy
-- `data/processed/`: nơi notebook lưu các file split train/valid/test
-- `artifacts/models/`: nơi lưu model `.keras` và file metadata
-- `artifacts/outputs/`: nơi để các output phụ trợ nếu cần
-- `notebooks/`: nơi chứa notebook huấn luyện
-
-## 3. Tổng quan luồng hoạt động
-
-Notebook chạy theo thứ tự này:
-
-1. Cài thư viện
-2. Import package và xác định đường dẫn dự án
-3. Khai báo biến cấu hình
-4. Tìm dataset local hoặc tải từ Kaggle
-5. Quét dữ liệu ảnh và chuẩn hóa nhãn
-6. Tạo train/validation/test split có stratify
-7. Tạo `tf.data.Dataset`
-8. Tính `class_weight`
-9. Khởi tạo mô hình `MobileNetV2`
-10. Train giai đoạn 1 với backbone đóng băng
-11. Fine-tune giai đoạn 2 với một phần backbone được mở
-12. Đánh giá mô hình trên test set
-13. Lưu model và metadata
-14. Chạy dự đoán trên ảnh đơn hoặc ảnh có nhiều khuôn mặt
-
-## 4. Giải thích chi tiết từng phần
-
-### 4.1. Cài thư viện
-
-Notebook dùng:
-
-- `kagglehub`: tải dataset từ Kaggle
-- `tensorflow`: train model
-- `opencv-python`: detect face
-- `scikit-learn`: chia dữ liệu và tính metric
-- `matplotlib`: vẽ biểu đồ
-- `pandas`: xử lý bảng dữ liệu
-- `pillow`: đọc ảnh
-
-### 4.2. Xác định đường dẫn dự án
-
-Notebook tự suy ra thư mục gốc dự án từ thư mục đang chạy.
-
-Các biến đường dẫn:
-
-- `NOTEBOOK_DIR`: thư mục hiện tại khi notebook chạy
-- `PROJECT_ROOT`: thư mục gốc repo
-- `DATA_DIR`: thư mục `data`
-- `RAW_DIR`: `data/raw`
-- `PROCESSED_DIR`: `data/processed`
-- `ARTIFACTS_DIR`: `artifacts`
-- `MODEL_DIR`: `artifacts/models`
-- `OUTPUT_DIR`: `artifacts/outputs`
-- `UPLOAD_DIR`: thư mục con để chứa ảnh test nếu cần
-
-Notebook tự tạo các thư mục này nếu chưa có.
-
-### 4.3. Cấu hình chính
-
-Đây là các biến bạn cần hiểu rõ nhất.
-
-#### Biến tái lập kết quả
-
-- `SEED = 42`
-
-Ý nghĩa:
-
-- Đồng bộ random cho Python, NumPy, TensorFlow
-- Giúp việc chia dữ liệu và train ổn định hơn giữa các lần chạy
-
-#### Biến kích thước ảnh
-
-- `IMG_SIZE = (224, 224)`
-
-Ý nghĩa:
-
-- Mọi ảnh được resize về `224x224`
-- Đây là kích thước phù hợp với `MobileNetV2`
-
-#### Biến batch
-
-- `BATCH_SIZE = 32`
-
-Ý nghĩa:
-
-- Số ảnh đi qua model trong một batch
-- Tăng batch sẽ nhanh hơn nếu GPU đủ RAM
-- Nếu máy yếu hoặc thiếu VRAM thì giảm xuống `16` hoặc `8`
-
-#### Biến số epoch
-
-- `EPOCHS_HEAD = 8`
-- `EPOCHS_FINE_TUNE = 8`
-
-Ý nghĩa:
-
-- Giai đoạn 1 train phần head classifier
-- Giai đoạn 2 fine-tune thêm backbone
-
-#### Tỷ lệ chia dữ liệu
-
-- `VALID_SIZE = 0.15`
-- `TEST_SIZE = 0.15`
-
-Ý nghĩa:
-
-- 15% cho validation
-- 15% cho test
-- 70% còn lại cho train
-
-#### Learning rate
-
-- `LEARNING_RATE_HEAD = 1e-3`
-- `LEARNING_RATE_FINE = 1e-5`
-
-Ý nghĩa:
-
-- Head train nhanh hơn với LR lớn hơn
-- Fine-tuning cần LR thấp để tránh phá hỏng trọng số pretrained
-
-#### Mixed precision
-
-- `USE_MIXED_PRECISION = True`
-
-Ý nghĩa:
-
-- Nếu có GPU phù hợp, TensorFlow dùng tính toán mixed precision
-- Có thể tăng tốc train và giảm dùng VRAM
-
-#### Điều khiển nguồn dữ liệu
-
-- `COPY_DATASETS_TO_RAW = False`
-- `KAGGLE_DATASETS = ['mstjebashazida/affectnet']`
-- `LOCAL_DATASET_ROOTS = []`
-
-Ý nghĩa:
-
-- `LOCAL_DATASET_ROOTS`: nếu bạn có dataset local thì điền vào đây
-- `KAGGLE_DATASETS`: slug dataset Kaggle để notebook dùng khi cần tải
-- `COPY_DATASETS_TO_RAW`: nếu `True`, notebook sẽ copy dataset đã tải về vào `data/raw`
-
-Khuyến nghị:
-
-- Với dataset lớn, nên giữ `False`
-- Nếu muốn repo có cấu trúc dữ liệu cục bộ rõ ràng thì có thể bật `True`, nhưng sẽ tốn dung lượng
-
-### 4.4. Nhãn cảm xúc
-
-Notebook chuẩn hóa về 7 lớp:
+Mục tiêu hiện tại của project là train một baseline model phân loại cảm xúc khuôn mặt thành 7 lớp:
 
 - `angry`
 - `disgust`
@@ -209,314 +14,317 @@ Notebook chuẩn hóa về 7 lớp:
 - `sad`
 - `surprise`
 
-Biến liên quan:
+Notebook chính sử dụng AffectNet từ Kaggle và MobileNetV2 pretrained trên ImageNet. MobileNetV2 là một kiến trúc CNN nhẹ, được dùng theo hướng transfer learning thay vì train một custom CNN từ đầu.
 
-- `CLASS_NAMES`
-- `CLASS_TO_ID`
-- `AFFECTNET_ID_TO_LABEL`
-- `LABEL_ALIASES`
+Kết quả hiện tại:
 
-Ý nghĩa:
+- Dataset hợp lệ sau indexing: `27,755` ảnh
+- Train samples: `19,428`
+- Validation samples: `4,163`
+- Test samples: `4,164`
+- Test accuracy: khoảng `61.74%`
+- Model đã lưu: `artifacts/models/face_emotion_mobilenetv2_v2.keras`
+- Metadata đã lưu: `artifacts/models/metadata_v2.json`
 
-- `CLASS_NAMES`: danh sách lớp chuẩn
-- `CLASS_TO_ID`: map tên lớp sang số
-- `AFFECTNET_ID_TO_LABEL`: map nhãn số AffectNet sang tên lớp
-- `LABEL_ALIASES`: chuẩn hóa các cách ghi tên khác nhau
+## 2. Cấu trúc project
 
-Các nhãn bị bỏ qua:
+```text
+Emotion Detect/
+├── artifacts/
+│   └── models/
+│       ├── face_emotion_mobilenetv2_v2.keras
+│       └── metadata_v2.json
+├── data/
+├── docs/
+│   ├── notebook_v2_review.md
+│   ├── request.txt
+│   └── report/
+│       └── emotion_detection_report_overleaf.tex
+├── notebooks/
+│   ├── Face_Emotion_Detect_.ipynb
+│   ├── NOTEBOOK_README.md
+│   ├── dpl.pdf
+│   ├── face-emotion-recognition-editable.pptx
+│   └── r2.txt
+├── outputs/
+├── app/
+└── README.md
+```
 
-- `contempt`
-- `none`
-- `uncertain`
-- `non-face`
+Ghi chú:
 
-Lý do:
+- `app/` hiện chưa có source code chính thức. Phần app hoặc interface sẽ được bổ sung sau.
+- `data/` là nơi dự kiến chứa dữ liệu raw/processed nếu chạy notebook local.
+- `artifacts/models/` đang chứa model và metadata đã train.
 
-- Notebook đang train theo bài toán 7-class
+## 3. Notebook chính
 
-## 5. Cách notebook tìm dữ liệu
+Notebook chính của project là:
 
-Notebook tìm dữ liệu theo thứ tự ưu tiên:
+```text
+notebooks/Face_Emotion_Detect_.ipynb
+```
 
-1. `LOCAL_DATASET_ROOTS` nếu bạn chỉ định thủ công
-2. Các thư mục đã có sẵn trong `data/raw/`
-3. `/kaggle/input/` nếu đang chạy trên Kaggle Notebook
-4. `kagglehub.dataset_download(...)` nếu chưa có dữ liệu local
+Notebook này thực hiện toàn bộ pipeline training:
 
-Điều này có nghĩa:
+```text
+Cài thư viện
+-> import thư viện và tạo đường dẫn project
+-> cấu hình dataset, class, hyperparameter
+-> tìm hoặc tải AffectNet
+-> chuẩn hóa label
+-> tạo dataframe ảnh
+-> preview và visualize dữ liệu
+-> chia train/validation/test
+-> tạo TensorFlow Dataset
+-> build MobileNetV2 model
+-> train classification head
+-> fine-tune backbone
+-> evaluate model
+-> lưu model và metadata
+-> demo predict ảnh đơn / detect face
+```
 
-- Nếu `data/raw/` đã có dataset, notebook sẽ không cần tải thêm
-- Nếu `data/raw/` rỗng, bạn cần Kaggle credential hoặc chạy trên Kaggle
+File giải thích chi tiết từng cell của notebook:
 
-## 6. Notebook đọc dữ liệu như thế nào
+```text
+notebooks/NOTEBOOK_README.md
+```
 
-Notebook hỗ trợ 2 kiểu chính.
+## 4. Dataset
 
-### 6.1. Dataset có CSV annotation
+Dataset được dùng là AffectNet từ Kaggle:
 
-Notebook sẽ:
+```text
+mstjebashazida/affectnet
+```
 
-1. Quét toàn bộ file `.csv`
-2. Tìm cột chứa đường dẫn ảnh
-3. Tìm cột chứa nhãn cảm xúc
-4. Đọc CSV theo từng `chunk`
-5. Map nhãn về 7 lớp chuẩn
-6. Tìm file ảnh thật trên đĩa
+Notebook hỗ trợ nhiều cách lấy dữ liệu:
 
-Các biến hỗ trợ:
+- Dùng dataset local khai báo trong `LOCAL_DATASET_ROOTS`
+- Dùng dataset đã có trong `data/raw`
+- Dùng Kaggle Input nếu chạy trên Kaggle Notebook
+- Tải dataset bằng `kagglehub`
 
-- `AFFECTNET_LABEL_COLUMNS`
-- `AFFECTNET_PATH_COLUMNS`
-- `find_existing_image(...)`
-- `collect_affectnet_csv_records(...)`
-
-### 6.2. Dataset dạng thư mục lớp
-
-Nếu không tìm thấy CSV hợp lệ, notebook sẽ:
-
-1. Duyệt tất cả file ảnh
-2. Suy ra lớp từ tên thư mục
-3. Gán nhãn tương ứng
-
-Hàm liên quan:
-
-- `infer_label_from_path(...)`
-- `collect_folder_label_records(...)`
-
-### 6.3. Biến dữ liệu đầu ra
-
-Sau khi quét xong, notebook tạo DataFrame:
-
-- `df_images`
+Sau khi index dữ liệu, notebook tạo dataframe `df_images`.
 
 Các cột chính:
 
-- `path`: đường dẫn tuyệt đối tới file ảnh
-- `label`: nhãn text
-- `source`: tên nguồn dataset
-- `annotation_file`: tên file CSV nếu có
-- `label_id`: mã số lớp
+- `path`: đường dẫn ảnh
+- `label`: nhãn cảm xúc dạng text
+- `source`: nguồn dữ liệu
+- `annotation_file`: file annotation nếu có
+- `label_id`: ID số của label
 
-## 7. Chia train / validation / test
+## 5. Label normalization
 
-Notebook dùng `train_test_split` với `stratify`.
+Notebook chuẩn hóa label AffectNet về 7 class mục tiêu.
 
-Ý nghĩa:
+Mapping chính:
 
-- Tỷ lệ từng lớp sẽ được giữ tương đối đồng đều giữa train/valid/test
-- Điều này quan trọng với bài toán cảm xúc vì class thường lệch mạnh
+| AffectNet ID | Label |
+|---:|---|
+| 0 | `neutral` |
+| 1 | `happy` |
+| 2 | `sad` |
+| 3 | `surprise` |
+| 4 | `fear` |
+| 5 | `disgust` |
+| 6 | `angry` |
+| 7-10 | ignored |
 
-Biến tạo ra:
+Các label ngoài phạm vi như `contempt`, `uncertain`, `none`, `non_face` bị loại bỏ.
 
-- `train_df`
-- `valid_df`
-- `test_df`
+Notebook cũng xử lý một số alias:
 
-Notebook cũng lưu:
+- `anger` -> `angry`
+- `happiness` -> `happy`
+- `sadness` -> `sad`
+- `surprised` -> `surprise`
 
-- [train_split.csv](C:\Users\minht\OneDrive\Tài liệu\Emotion Detect\data\processed\train_split.csv)
-- [valid_split.csv](C:\Users\minht\OneDrive\Tài liệu\Emotion Detect\data\processed\valid_split.csv)
-- [test_split.csv](C:\Users\minht\OneDrive\Tài liệu\Emotion Detect\data\processed\test_split.csv)
+## 6. Phân tích và visualize dữ liệu
 
-Lưu ý:
+Notebook có phần `Data Preview` để kiểm tra dữ liệu trước khi train.
 
-- Các file này chỉ xuất hiện sau khi chạy notebook
+Các thông tin đã có:
 
-## 8. TensorFlow Dataset pipeline
+- Tổng số ảnh hợp lệ
+- Số nguồn dữ liệu
+- Số file bị thiếu
+- Bảng số lượng ảnh theo từng class
+- Phần trăm từng class
+- Biểu đồ phân bố class
+- Biểu đồ nguồn dữ liệu
+- Grid ảnh mẫu theo từng class
 
-Notebook chuyển DataFrame thành `tf.data.Dataset`.
+Phân bố class hiện tại:
 
-Các bước:
+| Class | Count |
+|---|---:|
+| `angry` | 3,218 |
+| `disgust` | 2,477 |
+| `fear` | 3,176 |
+| `happy` | 5,044 |
+| `neutral` | 5,126 |
+| `sad` | 4,675 |
+| `surprise` | 4,039 |
 
-1. Đọc file ảnh từ `path`
-2. Decode ảnh RGB
-3. Resize về `224x224`
-4. Chuyển sang `float32`
-5. Batch
-6. Prefetch
+## 7. Train / validation / test split
 
-Hàm chính:
+Notebook chia dữ liệu theo tỉ lệ:
 
-- `load_image(path, label)`
-- `make_dataset(dataframe, training=False)`
+- Train: `70%`
+- Validation: `15%`
+- Test: `15%`
 
-Biến đầu ra:
+Việc chia dữ liệu dùng `train_test_split` với `stratify`, giúp giữ phân bố class tương đối ổn định giữa các tập.
 
-- `train_ds`
-- `valid_ds`
-- `test_ds`
+Kết quả split hiện tại:
 
-## 9. Class weight là gì và vì sao cần
+| Split | Samples |
+|---|---:|
+| Train | 19,428 |
+| Validation | 4,163 |
+| Test | 4,164 |
 
-Notebook tính:
-
-- `class_weights`
-
-Bằng:
-
-- `compute_class_weight(..., class_weight='balanced', ...)`
-
-Ý nghĩa:
-
-- Nếu lớp nào ít ảnh hơn, loss của lớp đó sẽ được tăng trọng số
-- Giúp model đỡ thiên về các lớp xuất hiện nhiều như `happy` hoặc `neutral`
-
-Điều này đặc biệt quan trọng với AffectNet vì dữ liệu thực tế thường không cân bằng.
-
-## 10. Kiến trúc model
-
-Model chính là `MobileNetV2` pretrained trên ImageNet.
-
-### 10.1. Backbone
-
-```python
-base_model = keras.applications.MobileNetV2(
-    include_top=False,
-    weights='imagenet',
-    input_shape=IMG_SIZE + (3,),
-)
-```
-
-Ý nghĩa:
-
-- Dùng mô hình pretrained để tận dụng đặc trưng thị giác đã học sẵn
-- `include_top=False` để bỏ phần classifier gốc của ImageNet
-
-### 10.2. Data augmentation
-
-Notebook thêm:
-
-- lật ngang
-- xoay nhẹ
-- zoom nhẹ
-- đổi tương phản nhẹ
-
-Mục tiêu:
-
-- Giảm overfitting
-- Tăng đa dạng dữ liệu train
-
-### 10.3. Head classifier
-
-Luồng cuối của model:
-
-1. `preprocess_input`
-2. `base_model`
-3. `GlobalAveragePooling2D`
-4. `Dropout(0.35)`
-5. `Dense(7, softmax)`
-
-Ý nghĩa từng phần:
-
-- `GlobalAveragePooling2D`: gom feature map thành vector
-- `Dropout(0.35)`: giảm overfitting
-- `Dense(..., softmax)`: xuất xác suất cho 7 lớp
-
-### 10.4. Output của model
-
-Model trả về vector xác suất 7 chiều:
+Các file split được lưu vào:
 
 ```text
-[P(angry), P(disgust), P(fear), P(happy), P(neutral), P(sad), P(surprise)]
+data/processed/train_split.csv
+data/processed/valid_split.csv
+data/processed/test_split.csv
 ```
 
-Lớp dự đoán cuối cùng là phần tử có xác suất lớn nhất.
+## 8. TensorFlow data pipeline
 
-## 11. Hai giai đoạn train
+Notebook chuyển dataframe thành `tf.data.Dataset`.
 
-### 11.1. Giai đoạn 1: train head
+Hàm `load_image` thực hiện:
 
-Ở giai đoạn này:
+- Đọc ảnh từ path
+- Decode ảnh thành RGB
+- Resize về `224 x 224`
+- Cast sang `float32`
 
-- `base_model.trainable = False`
+Hàm `make_dataset` thực hiện:
 
-Ý nghĩa:
+- Tạo dataset từ `path` và `label_id`
+- Shuffle tập train
+- Batch với `BATCH_SIZE = 32`
+- Prefetch bằng `AUTOTUNE`
 
-- Khóa toàn bộ backbone
-- Chỉ train phần classifier phía trên
+Notebook cũng tính `class_weight` bằng `compute_class_weight` để giảm ảnh hưởng của mất cân bằng class.
 
-Mục tiêu:
+Class weight hiện tại:
 
-- Để head học cách map đặc trưng sang 7 lớp cảm xúc
-- Tránh làm hỏng trọng số pretrained ngay từ đầu
+| Class | Weight |
+|---|---:|
+| `angry` | 1.2319 |
+| `disgust` | 1.6006 |
+| `fear` | 1.2485 |
+| `happy` | 0.7860 |
+| `neutral` | 0.7735 |
+| `sad` | 0.8482 |
+| `surprise` | 0.9818 |
 
-### 11.2. Giai đoạn 2: fine-tune
+## 9. Model architecture
 
-Ở giai đoạn này:
+Model sử dụng MobileNetV2 pretrained trên ImageNet.
 
-- `base_model.trainable = True`
-- Chỉ mở phần 30% layer cuối để train tiếp
+Kiến trúc:
 
-Mục tiêu:
+```text
+Input 224 x 224 x 3
+-> Data augmentation
+-> MobileNetV2 preprocess_input
+-> MobileNetV2 backbone, include_top=False
+-> GlobalAveragePooling2D
+-> Dropout(0.35)
+-> Dense(7, activation='softmax')
+```
 
-- Tinh chỉnh backbone cho đặc thù ảnh khuôn mặt và cảm xúc
+Data augmentation gồm:
 
-## 12. Callback trong quá trình train
+- Random horizontal flip
+- Random rotation `0.08`
+- Random zoom `0.10`
+- Random contrast `0.10`
 
-Notebook dùng 3 callback quan trọng.
+Output của model là vector xác suất 7 chiều, tương ứng với 7 class cảm xúc.
 
-### 12.1. ModelCheckpoint
+## 10. Training strategy
 
-Lưu model tốt nhất theo:
+Notebook train model theo 2 giai đoạn.
 
-- `val_accuracy`
+Giai đoạn 1: train classification head
 
-File:
+- Freeze MobileNetV2 backbone
+- Chỉ train phần head mới thêm
+- Epochs: `8`
+- Learning rate: `1e-3`
+- Optimizer: Adam
+- Loss: `sparse_categorical_crossentropy`
+- Metric: `accuracy`
 
-- [best_emotion_model.keras](C:\Users\minht\OneDrive\Tài liệu\Emotion Detect\artifacts\models\best_emotion_model.keras)
+Giai đoạn 2: fine-tune backbone
 
-Ý nghĩa:
+- Unfreeze MobileNetV2
+- Giữ frozen khoảng `70%` layer đầu
+- Fine-tune khoảng `30%` layer cuối
+- Epochs: `8`
+- Learning rate: `1e-5`
 
-- Dù epoch cuối không tốt nhất, bạn vẫn giữ được model tốt nhất trên validation
+Callbacks:
 
-### 12.2. EarlyStopping
+- `ModelCheckpoint`: lưu model tốt nhất theo `val_accuracy`
+- `EarlyStopping`: dừng sớm nếu validation accuracy không cải thiện
+- `ReduceLROnPlateau`: giảm learning rate nếu validation loss không cải thiện
 
-Theo dõi:
+Checkpoint tốt nhất được lưu tại:
 
-- `val_accuracy`
+```text
+artifacts/models/best_emotion_model.keras
+```
 
-Ý nghĩa:
+## 11. Evaluation
 
-- Nếu mô hình không cải thiện sau vài epoch, notebook dừng sớm
-- Tránh train vô ích và giảm overfitting
+Sau khi train, notebook load lại checkpoint tốt nhất và evaluate trên test set.
 
-### 12.3. ReduceLROnPlateau
+Các phần đánh giá hiện có:
 
-Theo dõi:
+- Test loss
+- Test accuracy
+- Classification report
+- Confusion matrix
+- Accuracy curve
+- Loss curve
 
-- `val_loss`
+Kết quả chính:
 
-Ý nghĩa:
+```text
+test_accuracy = 0.6174351572990417
+```
 
-- Khi learning bị chững, notebook tự giảm learning rate
+Tương đương:
 
-## 13. Sau khi train xong, model sẽ như thế nào
+```text
+61.74%
+```
 
-Sau khi train xong, bạn sẽ có 2 mốc quan trọng:
+Kết quả này là baseline ban đầu cho MobileNetV2 trên dữ liệu AffectNet đã xử lý.
 
-### 13.1. Best model
+## 12. Artifacts
 
-File:
+Các artifact hiện có:
 
-- [best_emotion_model.keras](C:\Users\minht\OneDrive\Tài liệu\Emotion Detect\artifacts\models\best_emotion_model.keras)
+```text
+artifacts/models/face_emotion_mobilenetv2_v2.keras
+artifacts/models/metadata_v2.json
+```
 
-Đây là model có `val_accuracy` tốt nhất trong toàn bộ quá trình train.
+`face_emotion_mobilenetv2_v2.keras` là model đã train và lưu lại.
 
-### 13.2. Final deploy model
-
-File:
-
-- [face_emotion_mobilenetv2_v2.keras](C:\Users\minht\OneDrive\Tài liệu\Emotion Detect\artifacts\models\face_emotion_mobilenetv2_v2.keras)
-
-Đây là bản model được lưu lại sau khi notebook load `best_model` và save sang tên ổn định hơn cho việc tích hợp ứng dụng.
-
-### 13.3. Metadata
-
-File:
-
-- [metadata_v2.json](C:\Users\minht\OneDrive\Tài liệu\Emotion Detect\artifacts\models\metadata_v2.json)
-
-Nội dung metadata gồm:
+`metadata_v2.json` chứa:
 
 - `class_names`
 - `img_size`
@@ -528,222 +336,110 @@ Nội dung metadata gồm:
 - `test_accuracy`
 - `class_weights`
 
-Ý nghĩa:
-
-- Đây là file rất quan trọng cho app inference
-- App có thể đọc file này để biết model dùng kích thước ảnh nào và thứ tự class là gì
-
-## 14. Các chỉ số đánh giá sẽ xuất hiện
-
-Notebook sinh ra các chỉ số sau.
-
-### 14.1. `accuracy`
-
-Xuất hiện trong train:
-
-- `accuracy`
-- `val_accuracy`
-
-Ý nghĩa:
-
-- `accuracy`: độ chính xác trên tập train
-- `val_accuracy`: độ chính xác trên tập validation
-
-Nếu:
-
-- `accuracy` tăng mạnh nhưng `val_accuracy` kém hoặc đứng yên
-
-thì thường là dấu hiệu overfitting.
-
-### 14.2. `loss`
-
-Xuất hiện trong train:
-
-- `loss`
-- `val_loss`
-
-Ý nghĩa:
-
-- Mức sai số của mô hình
-- Thường càng thấp càng tốt
-
-### 14.3. `test_loss`
-
-Được tính sau khi load model tốt nhất và evaluate trên `test_ds`.
-
-Ý nghĩa:
-
-- Sai số cuối cùng trên test set
-
-### 14.4. `test_accuracy`
-
-Được tính sau khi evaluate trên test set.
-
-Ý nghĩa:
-
-- Đây là chỉ số tổng quan quan trọng nhất để xem model dùng được đến đâu trên dữ liệu chưa thấy
-
-### 14.5. Classification report
-
-Notebook dùng:
-
-- `classification_report(y_true, y_pred, target_names=CLASS_NAMES)`
-
-Report này thường gồm:
-
-- `precision`
-- `recall`
-- `f1-score`
-- `support`
-
-Ý nghĩa:
-
-- `precision`: model đoán lớp đó thì đúng bao nhiêu phần trăm
-- `recall`: ảnh thật thuộc lớp đó thì model bắt được bao nhiêu phần trăm
-- `f1-score`: cân bằng giữa precision và recall
-- `support`: số mẫu thật của lớp đó trong test set
-
-Đây là phần rất quan trọng vì bài toán cảm xúc thường không cân bằng. Chỉ nhìn `accuracy` là chưa đủ.
-
-### 14.6. Confusion matrix
-
-Notebook vẽ confusion matrix.
-
-Ý nghĩa:
-
-- Cho biết lớp nào hay bị nhầm sang lớp nào
-- Ví dụ thường gặp:
-  - `fear` nhầm sang `surprise`
-  - `sad` nhầm sang `neutral`
-  - `disgust` nhầm sang `angry`
-
-Confusion matrix là nơi tốt nhất để hiểu mô hình đang sai kiểu gì.
-
-## 15. Hiện tại chưa có chỉ số thực tế
-
-Trong repo hiện tại:
-
-- Chưa có dataset local trong `data/raw/`
-- Chưa có model đã train trong `artifacts/models/`
-- Chưa có file split trong `data/processed/`
-
-Vì vậy:
-
-- README này giải thích chính xác notebook sẽ tạo ra các chỉ số gì
-- Nhưng chưa thể ghi số liệu thực tế như `test_accuracy = ...` cho đến khi notebook được chạy
-
-## 16. Cách đọc kết quả sau khi chạy notebook
-
-Sau khi chạy xong, bạn nên kiểm tra theo thứ tự:
-
-1. `Images found`
-2. Bảng phân phối số lượng mẫu theo lớp
-3. Bảng split train/valid/test
-4. `val_accuracy` tốt nhất trong lúc train
-5. `test_accuracy`
-6. `classification_report`
-7. `confusion_matrix`
-8. File model và metadata được lưu thành công hay chưa
-
-## 17. Hàm suy luận sau khi train
-
-Notebook có 2 hàm suy luận chính.
-
-### 17.1. `predict_emotion(image_path, model=best_model)`
-
-Chức năng:
-
-- Nhận một ảnh
-- Resize về `IMG_SIZE`
-- Chạy model
-- Trả về bảng xác suất theo từng cảm xúc
-
-Kết quả:
-
-- Ảnh được hiển thị
-- Tiêu đề ảnh chứa lớp dự đoán và độ tin cậy
-- Trả về DataFrame xác suất
-
-### 17.2. `detect_faces_and_predict(image_path, model=best_model)`
-
-Chức năng:
-
-- Dùng Haar Cascade của OpenCV để tìm khuôn mặt
-- Crop từng khuôn mặt
-- Chạy dự đoán cảm xúc cho từng face
-- Vẽ bounding box và nhãn lên ảnh
-
-Lưu ý:
-
-- Haar Cascade nhanh nhưng không phải detector tốt nhất
-- Nếu cần chất lượng cao hơn, có thể thay bằng MTCNN hoặc MediaPipe
-
-## 18. Các cải tiến đã được đưa vào notebook mới
-
-So với notebook gốc, bản `v2` cải thiện các điểm sau:
-
-1. Sửa lỗi biến `df` gây hỏng bước split
-2. Bám theo cấu trúc thư mục mới của dự án
-3. Ưu tiên dùng dữ liệu local trong `data/raw/`
-4. Lưu split CSV để tiện tái sử dụng
-5. Lưu metadata chi tiết hơn
-6. Thêm `class_weight` để xử lý mất cân bằng lớp
-7. Bật mixed precision khi có GPU
-
-## 19. Các giới hạn hiện tại
-
-Notebook hiện vẫn có các giới hạn sau:
-
-1. Chưa có bước detect face trước khi train
-2. Chưa cache sẵn ảnh đã resize ra file
-3. Chưa có TTA
-4. Chưa có export sang ONNX hoặc TensorFlow Lite
-5. Chưa có logging chuẩn như TensorBoard hoặc MLflow
-6. Detector face khi inference còn là Haar Cascade
-
-## 20. Khi nào cần tối ưu thêm
-
-Bạn nên cân nhắc tối ưu tiếp nếu gặp một trong các trường hợp:
-
-1. `val_accuracy` thấp và không cải thiện
-2. `test_accuracy` thấp hơn nhiều so với `val_accuracy`
-3. Lớp `fear`, `disgust`, `sad` có `f1-score` thấp
-4. Train quá chậm trên máy hiện tại
-5. Ứng dụng cần chạy realtime
-
-Các hướng tối ưu tiếp:
-
-1. Chuyển sang `EfficientNetB0` hoặc `EfficientNetV2B0`
-2. Dùng face crop trước khi train
-3. Tăng augmentation hợp lý
-4. Dùng focal loss nếu class imbalance nặng
-5. Tối ưu inference model cho app
-
-## 21. Cách chạy notebook an toàn
-
-Khuyến nghị chạy theo thứ tự:
-
-1. Mở notebook `Face_Emotion_Detect_Multi_v2.ipynb`
-2. Chạy cell cài thư viện
-3. Kiểm tra `LOCAL_DATASET_ROOTS` hoặc Kaggle credential
-4. Chạy tới cell `dataset_roots` để xác nhận nguồn dữ liệu
-5. Kiểm tra `Images found`
-6. Kiểm tra phân phối lớp
-7. Bắt đầu train
-8. Sau khi train xong, xác nhận model đã được lưu vào `artifacts/models/`
-
-## 22. Tóm tắt ngắn
-
-Notebook mới là một pipeline train emotion classifier hoàn chỉnh với:
-
-- Input linh hoạt từ Kaggle hoặc local
-- Chuẩn hóa dữ liệu theo 7 lớp cảm xúc
-- Transfer learning bằng `MobileNetV2`
-- Huấn luyện 2 giai đoạn
-- Đánh giá bằng accuracy, loss, classification report, confusion matrix
-- Lưu model và metadata để dùng cho ứng dụng
-
-Phần còn thiếu hiện tại không nằm ở logic notebook mà nằm ở dữ liệu thực tế:
-
-- Bạn cần dataset local hoặc cần quyền tải từ Kaggle
-- Khi notebook được chạy xong, mới có các chỉ số thực tế để báo cáo chính xác
+Metadata hiện tại xác nhận:
+
+```json
+{
+  "img_size": [224, 224],
+  "train_samples": 19428,
+  "valid_samples": 4163,
+  "test_samples": 4164,
+  "test_accuracy": 0.6174351572990417
+}
+```
+
+## 13. Report và slide
+
+Các tài liệu hiện có:
+
+```text
+docs/report/emotion_detection_report_overleaf.tex
+notebooks/dpl.pdf
+notebooks/face-emotion-recognition-editable.pptx
+```
+
+Report LaTeX mô tả:
+
+- Related work
+- Dataset và preprocessing
+- Model architecture
+- Training/fine-tuning/evaluation
+- Initial results
+- Limitations
+- Future work
+
+PDF `dpl.pdf` là bản report ngắn hơn ở dạng paper.
+
+PowerPoint `face-emotion-recognition-editable.pptx` là slide trình bày project.
+
+## 14. Phần app/interface
+
+Thư mục `app/` hiện chưa có source code chính thức.
+
+Phần này sẽ được bổ sung sau. Dự kiến app/interface sẽ sử dụng:
+
+```text
+artifacts/models/face_emotion_mobilenetv2_v2.keras
+artifacts/models/metadata_v2.json
+```
+
+Luồng app dự kiến:
+
+```text
+Upload/input image
+-> load model
+-> load metadata
+-> resize image to 224 x 224
+-> predict probabilities
+-> return emotion label, confidence, probability table
+```
+
+Nếu cần detect nhiều khuôn mặt trong một ảnh, app có thể thêm face detector trước bước predict.
+
+## 15. Hạn chế hiện tại
+
+Những điểm project hiện chưa hoàn thiện:
+
+- Chưa có app/interface chính thức.
+- Chưa lưu classification report, confusion matrix và learning curves thành file riêng trong `artifacts/outputs`.
+- Chưa có bước scan toàn dataset để phát hiện ảnh hỏng.
+- Chưa kiểm tra duplicate ảnh bằng image hash.
+- Chưa kiểm tra ảnh không có khuôn mặt.
+- Chưa có so sánh với custom CNN, EfficientNet, ResNet hoặc ConvNeXt.
+- Dependency chưa được pin version trong `requirements.txt`.
+
+## 16. Hướng phát triển tiếp theo
+
+Các việc nên bổ sung sau:
+
+- Tạo `requirements.txt`.
+- Lưu evaluation artifacts ra file:
+  - classification report CSV/JSON
+  - confusion matrix PNG/CSV
+  - learning curves PNG
+- Thêm data quality checks:
+  - corrupted images
+  - duplicate images
+  - low-resolution images
+  - non-face images
+- Thêm model comparison:
+  - custom CNN
+  - EfficientNetV2
+  - ResNet50
+  - ConvNeXtTiny
+- Xây dựng app/interface inference.
+- Tách inference logic thành module riêng để app dùng lại.
+
+## 17. Tóm tắt
+
+Project hiện đã có một pipeline training hoàn chỉnh cho facial emotion recognition:
+
+- Dataset: AffectNet
+- Model: MobileNetV2 transfer learning
+- Classes: 7 emotion classes
+- Training: 2-stage training và fine-tuning
+- Evaluation: accuracy, classification report, confusion matrix
+- Result: khoảng `61.74%` test accuracy
+- Artifact: model `.keras` và metadata `.json`
+
+Phần implementation notebook và report đã có nền tảng tốt. Phần app/interface sẽ được phát triển ở bước tiếp theo.
