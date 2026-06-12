@@ -36,14 +36,10 @@ Emotion Detect/
 ├── data/
 ├── docs/
 │   ├── notebook_v2_review.md
-│   ├── request.txt
-│   └── report/
-│       └── emotion_detection_report_overleaf.tex
+│   └── request.txt
 ├── notebooks/
 │   ├── Face_Emotion_Detect_.ipynb
 │   ├── NOTEBOOK_README.md
-│   ├── dpl.pdf
-│   ├── face-emotion-recognition-editable.pptx
 │   └── r2.txt
 ├── outputs/
 ├── app/
@@ -347,31 +343,7 @@ Metadata hiện tại xác nhận:
 }
 ```
 
-## 13. Report và slide
-
-Các tài liệu hiện có:
-
-```text
-docs/report/emotion_detection_report_overleaf.tex
-notebooks/dpl.pdf
-notebooks/face-emotion-recognition-editable.pptx
-```
-
-Report LaTeX mô tả:
-
-- Related work
-- Dataset và preprocessing
-- Model architecture
-- Training/fine-tuning/evaluation
-- Initial results
-- Limitations
-- Future work
-
-PDF `dpl.pdf` là bản report ngắn hơn ở dạng paper.
-
-PowerPoint `face-emotion-recognition-editable.pptx` là slide trình bày project.
-
-## 14. Phần app/interface
+## 13. Phần app/interface
 
 Thư mục `app/` hiện chưa có source code chính thức.
 
@@ -395,7 +367,7 @@ Upload/input image
 
 Nếu cần detect nhiều khuôn mặt trong một ảnh, app có thể thêm face detector trước bước predict.
 
-## 15. Hạn chế hiện tại
+## 14. Hạn chế hiện tại
 
 Những điểm project hiện chưa hoàn thiện:
 
@@ -407,11 +379,11 @@ Những điểm project hiện chưa hoàn thiện:
 - Chưa có so sánh với custom CNN, EfficientNet, ResNet hoặc ConvNeXt.
 - Dependency chưa được pin version trong `requirements.txt`.
 
-## 16. Hướng phát triển tiếp theo
+## 15. Hướng phát triển tiếp theo
 
 Các việc nên bổ sung sau:
 
-- Tạo `requirements.txt`.
+
 - Lưu evaluation artifacts ra file:
   - classification report CSV/JSON
   - confusion matrix PNG/CSV
@@ -429,7 +401,7 @@ Các việc nên bổ sung sau:
 - Xây dựng app/interface inference.
 - Tách inference logic thành module riêng để app dùng lại.
 
-## 17. Tóm tắt
+## 16. Tóm tắt
 
 Project hiện đã có một pipeline training hoàn chỉnh cho facial emotion recognition:
 
@@ -441,4 +413,4 @@ Project hiện đã có một pipeline training hoàn chỉnh cho facial emotion
 - Result: khoảng `61.74%` test accuracy
 - Artifact: model `.keras` và metadata `.json`
 
-Phần implementation notebook và report đã có nền tảng tốt. Phần app/interface sẽ được phát triển ở bước tiếp theo.
+Phần implementation notebook đã có nền tảng tốt. Phần app/interface sẽ được phát triển ở bước tiếp theo.
