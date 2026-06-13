@@ -61,6 +61,7 @@ request.txt
 #slides
 notebooks/face-emotion-recognition-editable.pptx
 notebooks/r2.txt
+construct.txt
 
 # Local notebook variants/docs
 notebooks/Face_Emotion_Detect_GoogleDrive.ipynb
