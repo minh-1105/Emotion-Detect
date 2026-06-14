@@ -297,7 +297,7 @@ Các phần đánh giá hiện có:
 Kết quả chính:
 
 ```text
-test_accuracy = 0.6174351572990417
+test_accuracy = 0.6194
 ```
 
 Tương đương:
