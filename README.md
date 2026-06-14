@@ -377,7 +377,6 @@ Những điểm project hiện chưa hoàn thiện:
 - Chưa kiểm tra duplicate ảnh bằng image hash.
 - Chưa kiểm tra ảnh không có khuôn mặt.
 - Chưa có so sánh với custom CNN, EfficientNet, ResNet hoặc ConvNeXt.
-- Dependency chưa được pin version trong `requirements.txt`.
 
 ## 15. Hướng phát triển tiếp theo
 
@@ -410,7 +409,7 @@ Project hiện đã có một pipeline training hoàn chỉnh cho facial emotion
 - Classes: 7 emotion classes
 - Training: 2-stage training và fine-tuning
 - Evaluation: accuracy, classification report, confusion matrix
-- Result: khoảng `61.74%` test accuracy
+- Result: khoảng `61.94%` test accuracy
 - Artifact: model `.keras` và metadata `.json`
 
 Phần implementation notebook đã có nền tảng tốt. Phần app/interface sẽ được phát triển ở bước tiếp theo.
