@@ -21,7 +21,7 @@ Kết quả hiện tại:
 - Train samples: `19,428`
 - Validation samples: `4,163`
 - Test samples: `4,164`
-- Test accuracy: khoảng `61.74%`
+- Test accuracy: khoảng `61.94%`
 - Model đã lưu: `artifacts/models/face_emotion_mobilenetv2_v2.keras`
 - Metadata đã lưu: `artifacts/models/metadata_v2.json`
 
