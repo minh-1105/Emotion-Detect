@@ -1,415 +1,219 @@
-# Facial Emotion Recognition Using AffectNet and MobileNetV2
+# Facial Emotion Recognition with AffectNet, MediaPipe, and Transfer Learning
 
-Project này xây dựng pipeline nhận diện cảm xúc khuôn mặt từ ảnh tĩnh. 
-## 1. Tổng quan
+This project builds an end-to-end facial emotion recognition pipeline for still images. It combines AffectNet-based datasets, MediaPipe Face Detection, and transfer learning with pretrained CNN backbones to classify facial expressions into eight emotion classes.
 
-Mục tiêu hiện tại của project là train một baseline model phân loại cảm xúc khuôn mặt thành 7 lớp:
+## Overview
 
-- `angry`
-- `disgust`
-- `fear`
-- `happy`
-- `neutral`
-- `sad`
-- `surprise`
+The current system expands the earlier 7-class MobileNetV2 baseline into an 8-class setup by adding the `contempt` class. It uses two dataset sources:
 
-Notebook chính sử dụng AffectNet từ Kaggle và MobileNetV2 pretrained trên ImageNet. MobileNetV2 là một kiến trúc CNN nhẹ, được dùng theo hướng transfer learning thay vì train một custom CNN từ đầu.
+- `mstjebashazida/affectnet`
+- `fatihkgg/affectnet-yolo-format`
 
-Kết quả hiện tại:
-
-- Dataset hợp lệ sau indexing: `27,755` ảnh
-- Train samples: `19,428`
-- Validation samples: `4,163`
-- Test samples: `4,164`
-- Test accuracy: khoảng `61.94%`
-- Model đã lưu: `artifacts/models/face_emotion_mobilenetv2_v2.keras`
-- Metadata đã lưu: `artifacts/models/metadata_v2.json`
-
-## 2. Cấu trúc project
+The final emotion classes are:
 
 ```text
-Emotion Detect/
-├── artifacts/
-│   └── models/
-│       ├── face_emotion_mobilenetv2_v2.keras
-│       └── metadata_v2.json
-├── data/
-├── docs/
-│   ├── notebook_v2_review.md
-│   └── request.txt
-├── notebooks/
-│   ├── Face_Emotion_Detect_.ipynb
-│   ├── NOTEBOOK_README.md
-│   └── r2.txt
-├── outputs/
-├── app/
-└── README.md
+anger, contempt, disgust, fear, happy, neutral, sad, surprise
 ```
 
-Ghi chú:
+Three main transfer-learning models are trained and evaluated on the same dataset split:
 
-- `app/` hiện chưa có source code chính thức. Phần app hoặc interface sẽ được bổ sung sau.
-- `data/` là nơi dự kiến chứa dữ liệu raw/processed nếu chạy notebook local.
-- `artifacts/models/` đang chứa model và metadata đã train.
+- MobileNetV2
+- EfficientNetB0
+- ResNet50
 
-## 3. Notebook chính
+An additional ResEmoteNet notebook is included as an experimental model notebook, but the final artifact comparison focuses on MobileNetV2, EfficientNetB0, and ResNet50.
 
-Notebook chính của project là:
+## Current Results
 
-```text
-notebooks/Face_Emotion_Detect_.ipynb
-```
+All three main models are evaluated on the same 8-class test set with 7,869 samples.
 
-Notebook này thực hiện toàn bộ pipeline training:
+| Model | Test Samples | Test Accuracy |
+|---|---:|---:|
+| MobileNetV2 | 7,869 | 61.43% |
+| EfficientNetB0 | 7,869 | 64.77% |
+| ResNet50 | 7,869 | 64.98% |
 
-```text
-Cài thư viện
--> import thư viện và tạo đường dẫn project
--> cấu hình dataset, class, hyperparameter
--> tìm hoặc tải AffectNet
--> chuẩn hóa label
--> tạo dataframe ảnh
--> preview và visualize dữ liệu
--> chia train/validation/test
--> tạo TensorFlow Dataset
--> build MobileNetV2 model
--> train classification head
--> fine-tune backbone
--> evaluate model
--> lưu model và metadata
--> demo predict ảnh đơn / detect face
-```
+ResNet50 has the highest saved test accuracy. EfficientNetB0 is very close, so it may be the better practical option when accuracy, model size, memory usage, and inference speed are considered together. MobileNetV2 remains useful as the lightweight baseline.
 
-File giải thích chi tiết từng cell của notebook:
+## Dataset
 
-```text
-notebooks/NOTEBOOK_README.md
-```
+The indexed dataset contains 52,454 images from two sources:
 
-## 4. Dataset
-
-Dataset được dùng là AffectNet từ Kaggle:
-
-```text
-mstjebashazida/affectnet
-```
-
-Notebook hỗ trợ nhiều cách lấy dữ liệu:
-
-- Dùng dataset local khai báo trong `LOCAL_DATASET_ROOTS`
-- Dùng dataset đã có trong `data/raw`
-- Dùng Kaggle Input nếu chạy trên Kaggle Notebook
-- Tải dataset bằng `kagglehub`
-
-Sau khi index dữ liệu, notebook tạo dataframe `df_images`.
-
-Các cột chính:
-
-- `path`: đường dẫn ảnh
-- `label`: nhãn cảm xúc dạng text
-- `source`: nguồn dữ liệu
-- `annotation_file`: file annotation nếu có
-- `label_id`: ID số của label
-
-## 5. Label normalization
-
-Notebook chuẩn hóa label AffectNet về 7 class mục tiêu.
-
-Mapping chính:
-
-| AffectNet ID | Label |
-|---:|---|
-| 0 | `neutral` |
-| 1 | `happy` |
-| 2 | `sad` |
-| 3 | `surprise` |
-| 4 | `fear` |
-| 5 | `disgust` |
-| 6 | `angry` |
-| 7-10 | ignored |
-
-Các label ngoài phạm vi như `contempt`, `uncertain`, `none`, `non_face` bị loại bỏ.
-
-Notebook cũng xử lý một số alias:
-
-- `anger` -> `angry`
-- `happiness` -> `happy`
-- `sadness` -> `sad`
-- `surprised` -> `surprise`
-
-## 6. Phân tích và visualize dữ liệu
-
-Notebook có phần `Data Preview` để kiểm tra dữ liệu trước khi train.
-
-Các thông tin đã có:
-
-- Tổng số ảnh hợp lệ
-- Số nguồn dữ liệu
-- Số file bị thiếu
-- Bảng số lượng ảnh theo từng class
-- Phần trăm từng class
-- Biểu đồ phân bố class
-- Biểu đồ nguồn dữ liệu
-- Grid ảnh mẫu theo từng class
-
-Phân bố class hiện tại:
-
-| Class | Count |
+| Source | Images |
 |---|---:|
-| `angry` | 3,218 |
-| `disgust` | 2,477 |
-| `fear` | 3,176 |
-| `happy` | 5,044 |
-| `neutral` | 5,126 |
-| `sad` | 4,675 |
-| `surprise` | 4,039 |
+| AffectNet | 30,626 |
+| AffectNet YOLO-format | 21,828 |
 
-## 7. Train / validation / test split
+Class distribution:
 
-Notebook chia dữ liệu theo tỉ lệ:
+| Class | Images |
+|---|---:|
+| anger | 6,164 |
+| contempt | 6,112 |
+| disgust | 5,438 |
+| fear | 6,520 |
+| happy | 7,424 |
+| neutral | 7,921 |
+| sad | 8,836 |
+| surprise | 4,039 |
 
-- Train: `70%`
-- Validation: `15%`
-- Test: `15%`
-
-Việc chia dữ liệu dùng `train_test_split` với `stratify`, giúp giữ phân bố class tương đối ổn định giữa các tập.
-
-Kết quả split hiện tại:
+The dataset is split with stratified sampling:
 
 | Split | Samples |
 |---|---:|
-| Train | 19,428 |
-| Validation | 4,163 |
-| Test | 4,164 |
+| Training | 36,717 |
+| Validation | 7,868 |
+| Testing | 7,869 |
 
-Các file split được lưu vào:
+Class weighting is used during training to reduce the impact of class imbalance.
+
+## Data Processing Pipeline
+
+The notebooks support multiple dataset formats:
+
+- class-labeled image folders
+- AffectNet annotation-style records
+- YOLO-format label files
+
+For YOLO-format data, the pipeline reads the class ID and bounding box, converts normalized YOLO coordinates into pixel coordinates, crops the face region, and uses the cropped face as classifier input.
+
+The common image pipeline is:
 
 ```text
-data/processed/train_split.csv
-data/processed/valid_split.csv
-data/processed/test_split.csv
+Input image
+-> RGB conversion
+-> face crop when bounding boxes are available
+-> resize to 224 x 224
+-> cast to float32
+-> model-specific preprocessing
+-> TensorFlow dataset batching and prefetching
 ```
 
-## 8. TensorFlow data pipeline
+For inference, MediaPipe Face Detection is used to locate the face region before classification. This helps the classifier focus on facial expression rather than background content. The detected face box is converted to pixel coordinates, expanded with a small margin, cropped, resized to 224 x 224, and passed to the selected CNN model.
 
-Notebook chuyển dataframe thành `tf.data.Dataset`.
+## Model Approach
 
-Hàm `load_image` thực hiện:
+The main models use transfer learning from ImageNet-pretrained CNN backbones.
 
-- Đọc ảnh từ path
-- Decode ảnh thành RGB
-- Resize về `224 x 224`
-- Cast sang `float32`
-
-Hàm `make_dataset` thực hiện:
-
-- Tạo dataset từ `path` và `label_id`
-- Shuffle tập train
-- Batch với `BATCH_SIZE = 32`
-- Prefetch bằng `AUTOTUNE`
-
-Notebook cũng tính `class_weight` bằng `compute_class_weight` để giảm ảnh hưởng của mất cân bằng class.
-
-Class weight hiện tại:
-
-| Class | Weight |
-|---|---:|
-| `angry` | 1.2319 |
-| `disgust` | 1.6006 |
-| `fear` | 1.2485 |
-| `happy` | 0.7860 |
-| `neutral` | 0.7735 |
-| `sad` | 0.8482 |
-| `surprise` | 0.9818 |
-
-## 9. Model architecture
-
-Model sử dụng MobileNetV2 pretrained trên ImageNet.
-
-Kiến trúc:
+Shared structure:
 
 ```text
 Input 224 x 224 x 3
--> Data augmentation
--> MobileNetV2 preprocess_input
--> MobileNetV2 backbone, include_top=False
--> GlobalAveragePooling2D
--> Dropout(0.35)
--> Dense(7, activation='softmax')
+-> model-specific preprocessing
+-> pretrained CNN backbone, include_top=False
+-> global average pooling
+-> dropout and/or batch normalization
+-> Dense(8), softmax
 ```
 
-Data augmentation gồm:
+Model strengths:
 
-- Random horizontal flip
-- Random rotation `0.08`
-- Random zoom `0.10`
-- Random contrast `0.10`
+- MobileNetV2: lightweight and fast baseline.
+- EfficientNetB0: strong balance between accuracy and efficiency.
+- ResNet50: deeper architecture with higher representation capacity.
 
-Output của model là vector xác suất 7 chiều, tương ứng với 7 class cảm xúc.
+Training is performed in two stages:
 
-## 10. Training strategy
+1. Freeze the pretrained backbone and train the custom classification head.
+2. Unfreeze the final portion of the backbone and fine-tune with a lower learning rate.
 
-Notebook train model theo 2 giai đoạn.
+Training configuration:
 
-Giai đoạn 1: train classification head
+| Model | Batch Size | Head Epochs | Fine-Tune Epochs | Head LR | Fine-Tune LR | Unfrozen Backbone Portion |
+|---|---:|---:|---:|---:|---:|---|
+| MobileNetV2 | 32 | 20 | 25 | 0.001 | 0.00001 | final 30% |
+| EfficientNetB0 | 16 | 15 | 20 | 0.001 | 0.00001 | final 40% |
+| ResNet50 | 32 | 15 | 20 | 0.001 | 0.00001 | final 40% |
 
-- Freeze MobileNetV2 backbone
-- Chỉ train phần head mới thêm
-- Epochs: `8`
-- Learning rate: `1e-3`
-- Optimizer: Adam
-- Loss: `sparse_categorical_crossentropy`
-- Metric: `accuracy`
+The notebooks use `ModelCheckpoint`, `EarlyStopping`, and `ReduceLROnPlateau` during training.
 
-Giai đoạn 2: fine-tune backbone
-
-- Unfreeze MobileNetV2
-- Giữ frozen khoảng `70%` layer đầu
-- Fine-tune khoảng `30%` layer cuối
-- Epochs: `8`
-- Learning rate: `1e-5`
-
-Callbacks:
-
-- `ModelCheckpoint`: lưu model tốt nhất theo `val_accuracy`
-- `EarlyStopping`: dừng sớm nếu validation accuracy không cải thiện
-- `ReduceLROnPlateau`: giảm learning rate nếu validation loss không cải thiện
-
-Checkpoint tốt nhất được lưu tại:
+## Project Structure
 
 ```text
-artifacts/models/best_emotion_model.keras
+Emotion Detect/
+|-- app/
+|-- archive/
+|-- artifacts/
+|   `-- models/
+|       |-- EfficientNetB0/
+|       |-- mobilenetv2/
+|       |-- Resemotenet/
+|       `-- Resnet50/
+|-- data/
+|-- docs/
+|   |-- report/
+|   |-- request.txt
+|   |-- slide_content.md
+|   `-- slide_image_candidates/
+|-- notebooks/
+|   |-- MobileNetV2_Face_Emotion_Detect.ipynb
+|   |-- EfficientNetB0_Face_Emotion_Detect.ipynb
+|   |-- ResNet50_Face_Emotion_Detect.ipynb
+|   |-- ResEmoteNet_Face_Emotion_Detect.ipynb
+|   `-- Evaluate_Artifact_Models.ipynb
+|-- outputs/
+|-- requirements.txt
+`-- README.md
 ```
 
-## 11. Evaluation
+## Main Notebooks
 
-Sau khi train, notebook load lại checkpoint tốt nhất và evaluate trên test set.
+| Notebook | Purpose |
+|---|---|
+| `notebooks/MobileNetV2_Face_Emotion_Detect.ipynb` | Train and evaluate the MobileNetV2 baseline. |
+| `notebooks/EfficientNetB0_Face_Emotion_Detect.ipynb` | Train and evaluate the EfficientNetB0 model. |
+| `notebooks/ResNet50_Face_Emotion_Detect.ipynb` | Train and evaluate the ResNet50 model. |
+| `notebooks/ResEmoteNet_Face_Emotion_Detect.ipynb` | Experimental ResEmoteNet training notebook. |
+| `notebooks/Evaluate_Artifact_Models.ipynb` | Load saved artifacts and evaluate the main models on the shared test split. |
 
-Các phần đánh giá hiện có:
+## Saved Artifacts
 
-- Test loss
-- Test accuracy
-- Classification report
-- Confusion matrix
-- Accuracy curve
-- Loss curve
-
-Kết quả chính:
+Main model artifacts:
 
 ```text
-test_accuracy = 0.6194
+artifacts/models/mobilenetv2/face_emotion_mobilenetv2_mediapipe_v2.keras
+artifacts/models/EfficientNetB0/face_emotion_efficientnetb0_mediapipe.keras
+artifacts/models/Resnet50/face_emotion_resnet50_mediapipe_v3.keras
 ```
 
-Tương đương:
+Main metadata files:
 
 ```text
-61.74%
+artifacts/models/mobilenetv2/metadata_mobilenetv2_mediapipe_v2.json
+artifacts/models/EfficientNetB0/metadata_efficientnetb0_mediapipe.json
+artifacts/models/Resnet50/metadata_resnet50_mediapipe_v3.json
 ```
 
-Kết quả này là baseline ban đầu cho MobileNetV2 trên dữ liệu AffectNet đã xử lý.
+## Evaluation
 
-## 12. Artifacts
+The evaluation notebook loads the saved `.keras` artifacts and evaluates them on the same deterministic test split. It reports:
 
-Các artifact hiện có:
+- test accuracy
+- precision, recall, and F1-score
+- macro F1 and weighted F1
+- confusion matrix
+- normalized confusion matrix
+- inference-time comparison
+- sample predictions
+
+The main evaluation notebook is:
 
 ```text
-artifacts/models/face_emotion_mobilenetv2_v2.keras
-artifacts/models/metadata_v2.json
+notebooks/Evaluate_Artifact_Models.ipynb
 ```
 
-`face_emotion_mobilenetv2_v2.keras` là model đã train và lưu lại.
+## Requirements
 
-`metadata_v2.json` chứa:
+Install dependencies with:
 
-- `class_names`
-- `img_size`
-- `kaggle_datasets`
-- `dataset_roots`
-- `train_samples`
-- `valid_samples`
-- `test_samples`
-- `test_accuracy`
-- `class_weights`
-
-Metadata hiện tại xác nhận:
-
-```json
-{
-  "img_size": [224, 224],
-  "train_samples": 19428,
-  "valid_samples": 4163,
-  "test_samples": 4164,
-  "test_accuracy": 0.6174351572990417
-}
+```bash
+pip install -r requirements.txt
 ```
 
-## 13. Phần app/interface
+The notebooks also use TensorFlow/Keras, scikit-learn, pandas, NumPy, Matplotlib, and MediaPipe. Some notebook environments may install missing helper packages inside the notebook itself.
 
-Thư mục `app/` hiện chưa có source code chính thức.
+## Notes
 
-Phần này sẽ được bổ sung sau. Dự kiến app/interface sẽ sử dụng:
-
-```text
-artifacts/models/face_emotion_mobilenetv2_v2.keras
-artifacts/models/metadata_v2.json
-```
-
-Luồng app dự kiến:
-
-```text
-Upload/input image
--> load model
--> load metadata
--> resize image to 224 x 224
--> predict probabilities
--> return emotion label, confidence, probability table
-```
-
-Nếu cần detect nhiều khuôn mặt trong một ảnh, app có thể thêm face detector trước bước predict.
-
-## 14. Hạn chế hiện tại
-
-Những điểm project hiện chưa hoàn thiện:
-
-- Chưa có app/interface chính thức.
-- Chưa lưu classification report, confusion matrix và learning curves thành file riêng trong `artifacts/outputs`.
-- Chưa có bước scan toàn dataset để phát hiện ảnh hỏng.
-- Chưa kiểm tra duplicate ảnh bằng image hash.
-- Chưa kiểm tra ảnh không có khuôn mặt.
-- Chưa có so sánh với custom CNN, EfficientNet, ResNet hoặc ConvNeXt.
-
-## 15. Hướng phát triển tiếp theo
-
-Các việc nên bổ sung sau:
-
-
-- Lưu evaluation artifacts ra file:
-  - classification report CSV/JSON
-  - confusion matrix PNG/CSV
-  - learning curves PNG
-- Thêm data quality checks:
-  - corrupted images
-  - duplicate images
-  - low-resolution images
-  - non-face images
-- Thêm model comparison:
-  - custom CNN
-  - EfficientNetV2
-  - ResNet50
-  - ConvNeXtTiny
-- Xây dựng app/interface inference.
-- Tách inference logic thành module riêng để app dùng lại.
-
-## 16. Tóm tắt
-
-Project hiện đã có một pipeline training hoàn chỉnh cho facial emotion recognition:
-
-- Dataset: AffectNet
-- Model: MobileNetV2 transfer learning
-- Classes: 7 emotion classes
-- Training: 2-stage training và fine-tuning
-- Evaluation: accuracy, classification report, confusion matrix
-- Result: khoảng `61.94%` test accuracy
-- Artifact: model `.keras` và metadata `.json`
-
-Phần implementation notebook đã có nền tảng tốt. Phần app/interface sẽ được phát triển ở bước tiếp theo.
+- Large datasets and trained model files may be stored outside Git or handled through Git LFS depending on the environment.
+- The local `archive/` and `data/` folders are used for dataset storage and preprocessing.
+- The final model should be selected by considering both accuracy and deployment constraints.
