@@ -202,6 +202,27 @@ The main evaluation notebook is:
 notebooks/Evaluate_Artifact_Models.ipynb
 ```
 
+## Future Work
+
+The next development step is to make the trained emotion recognition model easier to use outside the notebook environment.
+
+- Complete a simple user interface for image-based emotion recognition.
+- Allow users to upload an image from the interface.
+- Send the uploaded image to a FastAPI inference backend.
+- In FastAPI, load the saved model and run the full prediction pipeline:
+  - face detection;
+  - face cropping and resizing;
+  - model-specific preprocessing;
+  - emotion classification.
+- Return structured API results, including the detected face region, predicted emotion, confidence score, and class-probability distribution.
+- Display the FastAPI response clearly in the interface so users can view the prediction result without opening notebooks.
+
+Planned deployment flow:
+
+```text
+User interface -> FastAPI backend -> saved emotion model -> prediction result
+```
+
 ## Requirements
 
 Install dependencies with:
