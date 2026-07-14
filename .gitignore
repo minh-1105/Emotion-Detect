@@ -1,4 +1,4 @@
-# Python
+# Python cache and tooling
 __pycache__/
 *.py[cod]
 *$py.class
@@ -13,16 +13,16 @@ venv/
 env/
 ENV/
 
-# Jupyter
+# Jupyter notebooks
 .ipynb_checkpoints/
 
-# IDE / Editor
+# IDE and editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS files
+# OS metadata
 .DS_Store
 Thumbs.db
 desktop.ini
@@ -30,46 +30,59 @@ desktop.ini
 # Logs
 *.log
 
-# Environment / secrets
+# Environment files and secrets
 .env
 .env.*
 !.env.example
 kaggle.json
 
-# Training data
+# Dataset storage
 data/raw/
 data/processed/
+archive/
 
 # Model artifacts
-artifacts/models/
+artifacts/models/**
+!artifacts/models/
+!artifacts/models/**/
+!artifacts/models/**/.gitkeep
+artifacts/outputs/**
+!artifacts/outputs/
+!artifacts/outputs/**/
+!artifacts/outputs/**/.gitkeep
 
-# Generated outputs
+# Generated outputs and uploads
 artifacts/outputs/uploaded_images/
-
-# Temporary notebook workdirs
 emotion_workdir/
 
-# report
+# Reports and local notes
 emotion_detection_report_overleaf.tex
 notebook_v2_review.md
 dpl.pdf
-
-
-#request
 request.txt
+construct.txt
 
-#slides
+# Presentation drafts
 notebooks/face-emotion-recognition-editable.pptx
 notebooks/r2.txt
-construct.txt
 fer_fin.pptx
+~$r3.pptx
+r3.pptx
 
-# Local notebook variants/docs
-notebooks/Face_Emotion_Detect_GoogleDrive.ipynb
-notebooks/Test2.ipynb
+# Local notebook variants and docs
+notebooks/MobileNetV2_GoogleDrive_Face_Emotion_Detect.ipynb
+notebooks/MobileNetV2_Test2.ipynb
+notebooks/MobileNetV2_MediaPipe_Face_Emotion_Inference.ipynb
+notebooks/NOTEBOOK_README.md
+notebooks/Compare_Three_Emotion_Models.ipynb
+notebooks/ResEmoteNet_Face_Emotion_Detect_Legacy.ipynb
+notebooks/ResEmoteNet_Face_Emotion_Detect_README.md
+notebooks/docs.md
+docs
 
-# Data archives
-archive/
+# Local app helpers
+app/att.py
+run_api.bat
 
-#Pics
+# Image exports
 .png

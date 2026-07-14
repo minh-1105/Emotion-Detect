@@ -30,10 +30,10 @@ All three main models are evaluated on the same 8-class test set with 7,869 samp
 | Model | Test Samples | Test Accuracy |
 |---|---:|---:|
 | MobileNetV2 | 7,869 | 61.43% |
-| EfficientNetB0 | 7,869 | 64.77% |
+| EfficientNetB0 | 7,869 | 66.90% |
 | ResNet50 | 7,869 | 64.98% |
 
-ResNet50 has the highest saved test accuracy. EfficientNetB0 is very close, so it may be the better practical option when accuracy, model size, memory usage, and inference speed are considered together. MobileNetV2 remains useful as the lightweight baseline.
+The retrained EfficientNetB0 artifact is now the strongest practical model in this project. It reaches higher test accuracy than the earlier EfficientNetB0 run while keeping a smaller deployment footprint than ResNet50. MobileNetV2 remains useful as the lightweight baseline.
 
 ## Dataset
 
@@ -99,6 +99,7 @@ Shared structure:
 
 ```text
 Input 224 x 224 x 3
+-> training-time augmentation
 -> model-specific preprocessing
 -> pretrained CNN backbone, include_top=False
 -> global average pooling
@@ -126,6 +127,44 @@ Training configuration:
 | ResNet50 | 32 | 15 | 20 | 0.001 | 0.00001 | final 40% |
 
 The notebooks use `ModelCheckpoint`, `EarlyStopping`, and `ReduceLROnPlateau` during training.
+
+EfficientNetB0 fine-tuning details:
+
+| Setting | Value |
+|---|---|
+| Input size | 224 x 224 x 3 |
+| Batch size | 16 |
+| Validation split | 15% |
+| Test split | 15% |
+| Head training epochs | 15 |
+| Fine-tuning epochs | 20 |
+| Head learning rate | 0.001 |
+| Fine-tuning learning rate | 0.00001 |
+| Augmentation | horizontal flip, rotation 0.10, zoom 0.12, contrast 0.15 |
+| Head layers | GlobalAveragePooling2D, BatchNormalization, Dropout 0.35, Dense softmax |
+| Fine-tuning policy | unfreeze final 40% of EfficientNetB0 layers |
+| BatchNorm policy | keep BatchNormalization layers frozen during fine-tuning |
+| Loss | sparse categorical crossentropy |
+| Optimizer | Adam |
+| Training metrics | accuracy, top-2 accuracy, top-3 accuracy |
+| Checkpoint monitor | validation accuracy |
+| EarlyStopping | validation accuracy, patience 7, restore best weights |
+| ReduceLROnPlateau | validation loss, factor 0.3, patience 3, min LR 0.000001 |
+
+Latest EfficientNetB0 evaluation:
+
+| Metric | Value |
+|---|---:|
+| Test accuracy | 66.90% |
+| Top-2 accuracy | 85.50% |
+| Top-3 accuracy | 92.69% |
+| Test loss | 0.9072 |
+
+The EfficientNetB0 notebook also saves detailed reports under:
+
+```text
+artifacts/outputs/efficientnetb0_reports/
+```
 
 ## Project Structure
 
