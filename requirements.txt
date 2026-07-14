@@ -1,9 +1,12 @@
 tensorflow
-opencv-python
+opencv-python-headless
+fastapi
+uvicorn
+python-multipart
 scikit-learn
 matplotlib
 pandas
 numpy
 pillow
 kagglehub
-mediapipe
+mediapipe==0.10.35
