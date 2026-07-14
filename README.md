@@ -120,51 +120,13 @@ Training is performed in two stages:
 
 Training configuration:
 
-| Model | Batch Size | Head Epochs | Fine-Tune Epochs | Head LR | Fine-Tune LR | Unfrozen Backbone Portion |
-|---|---:|---:|---:|---:|---:|---|
-| MobileNetV2 | 32 | 20 | 25 | 0.001 | 0.00001 | final 30% |
-| EfficientNetB0 | 16 | 15 | 20 | 0.001 | 0.00001 | final 40% |
-| ResNet50 | 32 | 15 | 20 | 0.001 | 0.00001 | final 40% |
+| Model | Batch Size | Head Epochs | Fine-Tune Epochs | Head LR | Fine-Tune LR | Unfrozen Backbone Portion | Metrics |
+|---|---:|---:|---:|---:|---:|---|---|
+| MobileNetV2 | 32 | 20 | 25 | 0.001 | 0.00001 | final 30% | accuracy |
+| EfficientNetB0 | 16 | 15 | 20 | 0.001 | 0.00001 | final 40% | accuracy, top-2 accuracy, top-3 accuracy |
+| ResNet50 | 32 | 15 | 20 | 0.001 | 0.00001 | final 40% | accuracy |
 
 The notebooks use `ModelCheckpoint`, `EarlyStopping`, and `ReduceLROnPlateau` during training.
-
-EfficientNetB0 fine-tuning details:
-
-| Setting | Value |
-|---|---|
-| Input size | 224 x 224 x 3 |
-| Batch size | 16 |
-| Validation split | 15% |
-| Test split | 15% |
-| Head training epochs | 15 |
-| Fine-tuning epochs | 20 |
-| Head learning rate | 0.001 |
-| Fine-tuning learning rate | 0.00001 |
-| Augmentation | horizontal flip, rotation 0.10, zoom 0.12, contrast 0.15 |
-| Head layers | GlobalAveragePooling2D, BatchNormalization, Dropout 0.35, Dense softmax |
-| Fine-tuning policy | unfreeze final 40% of EfficientNetB0 layers |
-| BatchNorm policy | keep BatchNormalization layers frozen during fine-tuning |
-| Loss | sparse categorical crossentropy |
-| Optimizer | Adam |
-| Training metrics | accuracy, top-2 accuracy, top-3 accuracy |
-| Checkpoint monitor | validation accuracy |
-| EarlyStopping | validation accuracy, patience 7, restore best weights |
-| ReduceLROnPlateau | validation loss, factor 0.3, patience 3, min LR 0.000001 |
-
-Latest EfficientNetB0 evaluation:
-
-| Metric | Value |
-|---|---:|
-| Test accuracy | 66.90% |
-| Top-2 accuracy | 85.50% |
-| Top-3 accuracy | 92.69% |
-| Test loss | 0.9072 |
-
-The EfficientNetB0 notebook also saves detailed reports under:
-
-```text
-artifacts/outputs/efficientnetb0_reports/
-```
 
 ## Project Structure
 
