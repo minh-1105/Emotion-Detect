@@ -1,4 +1,4 @@
-# Facial Emotion Recognition with AffectNet, MediaPipe, and Transfer Learning
+# Facial Emotion Recognition with Transfer Learning
 
 This project builds an end-to-end facial emotion recognition pipeline for still images. It combines AffectNet-based datasets, MediaPipe Face Detection, and transfer learning with pretrained CNN backbones to classify facial expressions into eight emotion classes.
 
