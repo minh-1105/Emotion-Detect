@@ -225,15 +225,115 @@ Planned deployment flow:
 User interface -> FastAPI backend -> saved emotion model -> prediction result
 ```
 
-## Requirements
+## Setup and Run
 
-Install dependencies with:
+### 1. Prepare model artifacts
 
-```bash
-pip install -r requirements.txt
+The API expects the trained model and metadata files to exist under `artifacts/models/`.
+The default model is `resnet50`, so these files are required for the default run:
+
+```text
+artifacts/models/Resnet50/face_emotion_resnet50_mediapipe_v3.keras
+artifacts/models/Resnet50/metadata_resnet50_mediapipe_v3.json
+artifacts/models/mediapipe/blaze_face_short_range.tflite
 ```
 
-The notebooks also use TensorFlow/Keras, scikit-learn, pandas, NumPy, Matplotlib, and MediaPipe. Some notebook environments may install missing helper packages inside the notebook itself.
+Other supported models can also be placed in their matching folders:
+
+```text
+artifacts/models/mobilenetv2/
+artifacts/models/EfficientNetB0/
+artifacts/models/Resemotenet/
+```
+
+### 2. Run locally with Python
+
+Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+On Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+On macOS or Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+Start the FastAPI app:
+
+```bash
+python app/api.py
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8000
+```
+
+Useful API pages:
+
+```text
+http://127.0.0.1:8000/api
+http://127.0.0.1:8000/realtime
+http://127.0.0.1:8000/docs
+```
+
+On Windows, you can also start the API with:
+
+```bat
+run_api.bat
+```
+
+To run the desktop camera/image UI:
+
+```bash
+python app/app.py
+```
+
+### 3. Run with Docker
+
+Build the image from the project root:
+
+```bash
+docker build -t emotion-detect .
+```
+
+Run the container:
+
+```bash
+docker run --rm -p 8888:8888 emotion-detect
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8888
+```
+
+Useful Docker API pages:
+
+```text
+http://127.0.0.1:8888/api
+http://127.0.0.1:8888/realtime
+http://127.0.0.1:8888/docs
+```
+
+The Dockerfile copies `app/api.py`, `requirements.txt`, and the model folders under `artifacts/models/` into the image, so make sure the required model artifacts are present before building.
 
 ## Notes
 
